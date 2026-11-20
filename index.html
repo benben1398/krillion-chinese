@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>亿中选一 — 中华知识深潜</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+
+  :root {
+    --ocean-surface: #0a2e5c;
+    --ocean-deep: #020b1a;
+    --accent-gold: #f5c842;
+    --accent-cyan: #00e5ff;
+    --tier-plankton: #8bc34a;
+    --tier-clever: #cddc39;
+    --tier-schooler: #ffeb3b;
+    --tier-rare: #ff9800;
+    --tier-deep: #f44336;
+    --tier-krillion: #e040fb;
+    --glass-bg: rgba(255,255,255,0.06);
+    --glass-border: rgba(255,255,255,0.12);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Noto Sans SC', sans-serif;
+    background: var(--ocean-deep);
+    color: #e0e8f0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Bubbles background ── */
+  .bubbles {
+    position: fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden;
+  }
+  .bubbles span {
+    position: absolute; bottom: -40px;
+    width: 20px; height: 20px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 50%;
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    0%   { transform: translateY(0) scale(1); opacity: 0.4; }
+    100% { transform: translateY(-110vh) scale(0.3); opacity: 0; }
+  }
+  .bubbles span:nth-child(1){ left:5%;  width:14px; height:14px; animation-duration:11s; animation-delay:0s; }
+  .bubbles span:nth-child(2){ left:15%; width:20px; height:20px; animation-duration:9s;  animation-delay:1s; }
+  .bubbles span:nth-child(3){ left:30%; width:10px; height:10px; animation-duration:14s; animation-delay:2s; }
+  .bubbles span:nth-child(4){ left:45%; width:24px; height:24px; animation-duration:8s;  animation-delay:0.5s;}
+  .bubbles span:nth-child(5){ left:60%; width:16px; height:16px; animation-duration:12s; animation-delay:3s; }
+  .bubbles span:nth-child(6){ left:75%; width:18px; height:18px; animation-duration:10s; animation-delay:1.5s;}
+  .bubbles span:nth-child(7){ left:88%; width:12px; height:12px; animation-duration:13s; animation-delay:4s; }
+
+  /* ── Layout ── */
+  .container {
+    position: relative; z-index:1;
+    max-width: 540px; margin: 0 auto; padding: 20px 16px 40px;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center; margin-bottom: 24px; width: 100%;
+  }
+  .header h1 {
+    font-size: 2.4rem; font-weight: 900;
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+  }
+  .header .subtitle {
+    font-size: 0.9rem; color: rgba(255,255,255,0.5); margin-top: 4px;
+  }
+
+  /* ── Depth meter ── */
+  .depth-display {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--glass-bg); border: 1px solid var(--glass-border);
+    border-radius: 16px; padding: 12px 24px; margin-bottom: 20px;
+    width: 100%;
+  }
+  .depth-icon { font-size: 2rem; }
+  .depth-info { flex:1; }
+  .depth-label { font-size: 0.75rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
+  .depth-value { font-size: 1.6rem; font-weight: 700; color: var(--accent-cyan); }
+  .depth-value span { font-size: 0.9rem; font-weight: 400; }
+  .round-info {
+    font-size: 0.85rem; color: rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.08); border-radius: 20px; padding: 4px 14px;
+  }
+
+  /* ── Progress dots ── */
+  .progress-dots {
+    display: flex; gap: 8px; margin-bottom: 24px; justify-content: center;
+  }
+  .dot {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; color: rgba(255,255,255,0.3);
+    transition: all 0.4s;
+  }
+  .dot.active { border-color: var(--accent-cyan); color: var(--accent-cyan); box-shadow: 0 0 12px rgba(0,229,255,0.3); }
+  .dot.done { border-color: transparent; color: #fff; }
+  .dot.tier-plankton { background: var(--tier-plankton); }
+  .dot.tier-clever   { background: var(--tier-clever); color:#333; }
+  .dot.tier-schooler { background: var(--tier-schooler); color:#333; }
+  .dot.tier-rare     { background: var(--tier-rare); }
+  .dot.tier-deep     { background: var(--tier-deep); }
+  .dot.tier-krillion { background: var(--tier-krillion); }
+  .dot.tier-miss     { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3); }
+
+  /* ── Card ── */
+  .card {
+    background: var(--glass-bg); border: 1px solid var(--glass-border);
+    border-radius: 20px; padding: 28px 24px; width: 100%;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s;
+  }
+
+  /* ── Timer ── */
+  .timer-bar-wrap {
+    width: 100%; height: 6px; background: rgba(255,255,255,0.08);
+    border-radius: 3px; margin-bottom: 18px; overflow: hidden;
+  }
+  .timer-bar {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-gold));
+    transition: width 0.1s linear;
+  }
+  .timer-bar.urgent { background: linear-gradient(90deg, #f44336, #ff9800); }
+  .timer-text {
+    text-align: center; font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-bottom: 6px;
+  }
+
+  /* ── Prompt ── */
+  .prompt {
+    font-size: 1.3rem; font-weight: 700; text-align: center;
+    margin-bottom: 20px; line-height: 1.5;
+    color: #fff;
+  }
+  .prompt-hint {
+    font-size: 0.8rem; color: rgba(255,255,255,0.4); text-align: center; margin-bottom: 16px;
+  }
+
+  /* ── Input ── */
+  .input-row {
+    display: flex; gap: 8px;
+  }
+  .answer-input {
+    flex: 1; padding: 12px 16px; font-size: 1rem;
+    background: rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px; color: #fff; outline: none;
+    font-family: 'Noto Sans SC', sans-serif;
+    transition: border-color 0.2s;
+  }
+  .answer-input:focus { border-color: var(--accent-cyan); }
+  .answer-input::placeholder { color: rgba(255,255,255,0.3); }
+  .submit-btn {
+    padding: 12px 20px; border: none; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent-cyan), #0097a7);
+    color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer;
+    font-family: 'Noto Sans SC', sans-serif;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+  .submit-btn:hover { transform: scale(1.05); }
+  .submit-btn:active { transform: scale(0.97); }
+
+  /* ── Feedback ── */
+  .feedback {
+    margin-top: 16px; text-align: center; min-height: 50px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .feedback-tier {
+    font-size: 1.1rem; font-weight: 700; padding: 4px 18px;
+    border-radius: 20px; display: inline-block; margin-bottom: 6px;
+  }
+  .feedback-points { font-size: 0.85rem; color: rgba(255,255,255,0.6); }
+  .feedback-refuse { color: #f44336; font-size: 0.9rem; }
+
+  .next-btn {
+    margin-top: 14px; padding: 10px 28px; border: none; border-radius: 12px;
+    background: rgba(255,255,255,0.1); color: #fff; font-size: 0.95rem;
+    cursor: pointer; font-family: 'Noto Sans SC', sans-serif;
+    transition: background 0.2s;
+  }
+  .next-btn:hover { background: rgba(255,255,255,0.18); }
+
+  /* ── Start / Results screens ── */
+  .screen { display: none; width: 100%; }
+  .screen.active { display: flex; flex-direction: column; align-items: center; }
+
+  .start-btn, .restart-btn {
+    margin-top: 20px; padding: 14px 40px; border: none; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent-gold), #e6a800);
+    color: #1a1a2e; font-size: 1.1rem; font-weight: 700; cursor: pointer;
+    font-family: 'Noto Sans SC', sans-serif;
+    letter-spacing: 1px;
+    transition: transform 0.15s;
+  }
+  .start-btn:hover, .restart-btn:hover { transform: scale(1.05); }
+
+  .results-title {
+    font-size: 1.8rem; font-weight: 900; margin-bottom: 6px;
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .results-depth {
+    font-size: 3rem; font-weight: 900; color: var(--accent-cyan); margin: 10px 0;
+  }
+  .results-depth span { font-size: 1.2rem; font-weight: 400; }
+
+  .results-breakdown {
+    width: 100%; margin-top: 16px;
+  }
+  .result-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    margin-bottom: 6px;
+  }
+  .result-row .rr-num { font-size: 0.75rem; color: rgba(255,255,255,0.4); width: 20px; text-align: center; }
+  .result-row .rr-prompt { flex:1; font-size: 0.85rem; color: rgba(255,255,255,0.7); }
+  .result-row .rr-answer { font-size: 0.85rem; font-weight: 600; color: #fff; margin-right: 6px; }
+  .result-row .rr-tier {
+    font-size: 0.7rem; font-weight: 700; padding: 2px 10px;
+    border-radius: 10px; white-space: nowrap;
+  }
+
+  /* ── Zone label ── */
+  .zone-label {
+    margin-top: 10px; font-size: 0.8rem; color: rgba(255,255,255,0.4);
+    text-align: center; font-style: italic;
+  }
+
+  /* ── How-to ── */
+  .howto {
+    margin-top: 20px; padding: 16px 20px;
+    background: rgba(255,255,255,0.04); border-radius: 14px;
+    width: 100%; font-size: 0.85rem; line-height: 1.7;
+    color: rgba(255,255,255,0.6);
+  }
+  .howto h3 { color: var(--accent-gold); margin-bottom: 8px; font-size: 1rem; }
+  .howto ul { padding-left: 18px; }
+  .howto li { margin-bottom: 4px; }
+
+  /* ── Share ── */
+  .share-box {
+    margin-top: 16px; width: 100%; padding: 14px;
+    background: rgba(0,0,0,0.3); border-radius: 12px;
+    font-family: monospace; font-size: 0.8rem; white-space: pre-wrap;
+    color: rgba(255,255,255,0.7); line-height: 1.5; text-align: center;
+  }
+  .copy-btn {
+    margin-top: 10px; padding: 8px 24px; border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px; background: transparent; color: #fff;
+    cursor: pointer; font-family: 'Noto Sans SC', sans-serif; font-size: 0.85rem;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.08); }
+
+  /* ── Animations ── */
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .anim-in { animation: slideUp 0.4s ease-out; }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+  }
+  .shake { animation: shake 0.35s ease-in-out; }
+
+  /* mobile */
+  @media (max-width: 480px) {
+    .header h1 { font-size: 1.8rem; }
+    .prompt { font-size: 1.1rem; }
+    .depth-value { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bubbles">
+  <span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span>
+</div>
+
+<div class="container">
+  <div class="header">
+    <h1>🐟 亿中选一</h1>
+    <div class="subtitle">中华知识深潜挑战</div>
+  </div>
+
+  <!-- ═══ START SCREEN ═══ -->
+  <div id="startScreen" class="screen active">
+    <div class="card anim-in" style="text-align:center;">
+      <div style="font-size:4rem; margin-bottom:12px;">🌊</div>
+      <p style="font-size:1.1rem; font-weight:600; margin-bottom:8px;">准备好潜入知识的深海了吗？</p>
+      <p style="font-size:0.85rem; color:rgba(255,255,255,0.5); line-height:1.6;">
+        每轮7道中华文化题目<br>
+        答案越冷门，潜得越深！<br>
+        你能到达海底7000米吗？
+      </p>
+      <button class="start-btn" onclick="startGame()">🏊 开始深潜</button>
+    </div>
+    <div class="howto">
+      <h3>📖 玩法说明</h3>
+      <ul>
+        <li>每题有 <strong>25秒</strong> 作答时间</li>
+        <li>输入一个 <strong>正确且冷门</strong> 的答案</li>
+        <li>答案越冷门，得分越高，潜得越深</li>
+        <li>答错不扣分，但会浪费时间</li>
+        <li>超时则该题得0分</li>
+      </ul>
+      <h3 style="margin-top:12px;">🎯 稀有度等级</h3>
+      <ul>
+        <li><span style="color:var(--tier-plankton)">●</span> 浮游 — 10分（最常见）</li>
+        <li><span style="color:var(--tier-clever)">●</span> 聪明 — 15分</li>
+        <li><span style="color:var(--tier-schooler)">●</span> 鱼群 — 30分</li>
+        <li><span style="color:var(--tier-rare)">●</span> 稀有 — 60分</li>
+        <li><span style="color:var(--tier-deep)">●</span> 深海 — 85分</li>
+        <li><span style="color:var(--tier-krillion)">●</span> 亿中选一 — 100分（极致冷门）</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ GAME SCREEN ═══ -->
+  <div id="gameScreen" class="screen">
+    <div class="depth-display">
+      <div class="depth-icon">🐟</div>
+      <div class="depth-info">
+        <div class="depth-label">当前深度</div>
+        <div class="depth-value"><span id="depthNum">0</span> <span>米</span></div>
+      </div>
+      <div class="round-info" id="roundInfo">第 1 / 7 题</div>
+    </div>
+
+    <div class="progress-dots" id="progressDots"></div>
+
+    <div class="card anim-in" id="questionCard">
+      <div class="timer-text" id="timerText">剩余 25 秒</div>
+      <div class="timer-bar-wrap">
+        <div class="timer-bar" id="timerBar" style="width:100%"></div>
+      </div>
+      <div class="prompt" id="promptText"></div>
+      <div class="prompt-hint" id="promptHint">答案越冷门，潜得越深 🐠</div>
+      <div class="input-row" id="inputRow">
+        <input type="text" class="answer-input" id="answerInput" placeholder="输入你的答案..." autocomplete="off">
+        <button class="submit-btn" id="submitBtn" onclick="submitAnswer()">提交</button>
+      </div>
+      <div class="feedback" id="feedback"></div>
+    </div>
+
+    <div class="zone-label" id="zoneLabel"></div>
+  </div>
+
+  <!-- ═══ RESULTS SCREEN ═══ -->
+  <div id="resultsScreen" class="screen">
+    <div class="card anim-in" style="text-align:center;">
+      <div class="results-title">🎉 深潜结束！</div>
+      <div class="results-depth"><span id="finalDepth">0</span> <span>米</span></div>
+      <div id="finalZone" style="font-size:0.9rem; color:rgba(255,255,255,0.5); margin-bottom:10px;"></div>
+      <div id="finalScore" style="font-size:0.9rem; color:rgba(255,255,255,0.6);"></div>
+    </div>
+    <div class="results-breakdown" id="resultsBreakdown"></div>
+    <div class="share-box" id="shareBox"></div>
+    <button class="copy-btn" onclick="copyShare()">📋 复制分享</button>
+    <button class="restart-btn" onclick="restartGame()">🔄 再来一次</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// QUESTION DATABASE — All Chinese-culture oriented
+// ═══════════════════════════════════════════
+const ALL_QUESTIONS = [
+  {
+    prompt: "说出一个中国的朝代",
+    hint: "历史长河中有很多朝代哦",
+    answers: {
+      // tier: array of accepted answers
+      "浮游":   ["唐朝","唐","宋朝","宋","明朝","明","清朝","清","汉朝","汉"],
+      "聪明":   ["元朝","元","秦朝","秦","隋朝","隋","三国"],
+      "鱼群":   ["周朝","周","商朝","商","晋朝","晋","五代十国","南宋","北宋"],
+      "稀有":   ["夏朝","夏","辽","金","西夏","南北朝","东汉","西汉","东晋","西晋"],
+      "深海":   ["新朝","后梁","后唐","后晋","后汉","后周","北齐","陈朝","北周"],
+      "亿中选一":["武周","南梁","南陈","东魏","西魏","北燕","前秦","后赵","成汉","冉魏"]
+    }
+  },
+  {
+    prompt: "说出一道中国菜的名字",
+    hint: "八大菜系，博大精深",
+    answers: {
+      "浮游":   ["宫保鸡丁","麻婆豆腐","回锅肉","红烧肉","番茄炒蛋","西红柿炒鸡蛋","糖醋排骨","鱼香肉丝"],
+      "聪明":   ["水煮鱼","酸菜鱼","北京烤鸭","小笼包","饺子","炸酱面","火锅","东坡肉"],
+      "鱼群":   ["佛跳墙","叫花鸡","狮子头","蚂蚁上树","龙井虾仁","松鼠鳜鱼","梅菜扣肉","口水鸡"],
+      "稀有":   ["开水白菜","文思豆腐","霸王别姬","翡翠烧麦","蟹粉狮子头","三套鸭","八宝鸭","樟茶鸭"],
+      "深海":   ["雪花鸡淖","鸡豆花","灯影牛肉","奶汤蒲菜","拔丝山药","孔府一品锅","荷包鲫鱼","干炸响铃"],
+      "亿中选一":["罗汉大虾","绣球干贝","凤尾虾排","蝴蝶海参","芙蓉鸡片","雪衣豆沙","鸳鸯戏水","三不沾"]
+    }
+  },
+  {
+    prompt: "说出一位中国古代诗人",
+    hint: "唐诗宋词，名家辈出",
+    answers: {
+      "浮游":   ["李白","杜甫","白居易","苏轼","李清照"],
+      "聪明":   ["王维","杜牧","李商隐","陶渊明","辛弃疾","陆游","王之涣","孟浩然"],
+      "鱼群":   ["柳宗元","贺知章","王昌龄","刘禹锡","韩愈","欧阳修","范仲淹","岑参"],
+      "稀有":   ["骆宾王","卢照邻","王勃","杨炯","高适","温庭筠","韦庄","纳兰性德","黄庭坚"],
+      "深海":   ["张若虚","陈子昂","沈佺期","宋之问","李贺","皮日休","贯休","司空图"],
+      "亿中选一":["曹邺","鱼玄机","薛涛","花蕊夫人","上官婉儿","元好问","张养浩","马致远"]
+    }
+  },
+  {
+    prompt: "说出一座中国名山",
+    hint: "三山五岳，名山大川",
+    answers: {
+      "浮游":   ["泰山","黄山","华山","峨眉山","庐山"],
+      "聪明":   ["嵩山","衡山","恒山","武当山","五台山","长白山","昆仑山"],
+      "鱼群":   ["武夷山","雁荡山","天山","青城山","崂山","三清山","龙虎山"],
+      "稀有":   ["梵净山","丹霞山","狼牙山","太行山","井冈山","终南山","罗浮山","鸡足山"],
+      "深海":   ["莫干山","紫金山","花果山","九华山","天目山","大别山","神农架","王屋山"],
+      "亿中选一":["齐云山","缙云山","金佛山","四姑娘山","贡嘎山","玉龙雪山","麦积山","崆峒山"]
+    }
+  },
+  {
+    prompt: "说出一个中国传统节日或节气",
+    hint: "千年传承的节日文化",
+    answers: {
+      "浮游":   ["春节","中秋节","端午节","元宵节","清明节","国庆节"],
+      "聪明":   ["重阳节","七夕节","除夕","冬至","小年","元旦","腊八节"],
+      "鱼群":   ["寒食节","上巳节","中元节","下元节","龙抬头","立春","惊蛰"],
+      "稀有":   ["花朝节","社日","谷雨","芒种","白露","霜降","大雪","小满"],
+      "深海":   ["天穿节","天贶节","尾牙","送穷节","处暑","小暑","大暑","寒露"],
+      "亿中选一":["天医节","翻经节","观莲节","地藏节","祭灶节","人日","天灸日","龙母诞"]
+    }
+  },
+  {
+    prompt: "说出一部中国古典文学作品",
+    hint: "经典名著，流传千古",
+    answers: {
+      "浮游":   ["红楼梦","西游记","三国演义","水浒传"],
+      "聪明":   ["聊斋志异","史记","论语","道德经","孙子兵法","诗经"],
+      "鱼群":   ["左传","战国策","山海经","世说新语","搜神记","资治通鉴","楚辞"],
+      "稀有":   ["金瓶梅","儒林外史","镜花缘","封神演义","老残游记","浮生六记","阅微草堂笔记"],
+      "深海":   ["太平广记","文心雕龙","梦溪笔谈","天工开物","容斋随笔","东京梦华录","洛阳伽蓝记"],
+      "亿中选一":["齐民要术","艺文类聚","北堂书钞","太平御览","册府元龟","玉台新咏","文选","初学记"]
+    }
+  },
+  {
+    prompt: "说出一种中国茶的种类",
+    hint: "茶文化源远流长",
+    answers: {
+      "浮游":   ["龙井","普洱","铁观音","碧螺春","茉莉花茶","绿茶","红茶"],
+      "聪明":   ["大红袍","毛尖","白茶","乌龙茶","黑茶","黄茶","正山小种"],
+      "鱼群":   ["安吉白茶","祁门红茶","六安瓜片","君山银针","白毫银针","滇红","凤凰单丛"],
+      "稀有":   ["太平猴魁","蒙顶甘露","都匀毛尖","恩施玉露","庐山云雾","信阳毛尖","武夷岩茶"],
+      "深海":   ["竹叶青","黄山毛峰","漳平水仙","坦洋工夫","政和白茶","金骏眉","桐木关正山小种"],
+      "亿中选一":["紫笋茶","阳羡雪芽","涌溪火青","敬亭绿雪","径山茶","惠明茶","仙人掌茶","千两茶"]
+    }
+  },
+  {
+    prompt: "说出一种中国传统乐器",
+    hint: "丝竹管弦，宫商角徵羽",
+    answers: {
+      "浮游":   ["二胡","古筝","琵琶","笛子","鼓"],
+      "聪明":   ["箫","唢呐","扬琴","古琴","锣","编钟","埙"],
+      "鱼群":   ["笙","阮","柳琴","三弦","板胡","月琴","中阮"],
+      "稀有":   ["箜篌","筑","排箫","瑟","磬","管子","芦笙"],
+      "深海":   ["篪","缶","柷","敔","特磬","应鼓","搏拊"],
+      "亿中选一":["轧筝","奚琴","忽雷","凤首箜篌","五弦琵琶","火不思","龙笛","尺八"]
+    }
+  },
+  {
+    prompt: "说出一个三国时期的人物",
+    hint: "英雄辈出的三国时代",
+    answers: {
+      "浮游":   ["诸葛亮","曹操","刘备","关羽","张飞","赵云","吕布","孙权"],
+      "聪明":   ["周瑜","司马懿","黄忠","马超","典韦","许褚","甘宁","太史慈"],
+      "鱼群":   ["庞统","徐庶","荀彧","郭嘉","贾诩","张辽","夏侯惇","陆逊"],
+      "稀有":   ["法正","蒋琬","费祎","姜维","邓艾","钟会","张昭","鲁肃"],
+      "深海":   ["蒋钦","程普","黄盖","韩当","凌统","马谡","王平","李严"],
+      "亿中选一":["糜竺","简雍","孙乾","伊籍","霍峻","廖化","王允","蔡邕"]
+    }
+  },
+  {
+    prompt: "说出一个中国省份或直辖市",
+    hint: "九百六十万平方公里",
+    answers: {
+      "浮游":   ["北京","上海","广东","浙江","四川","江苏","山东"],
+      "聪明":   ["湖南","湖北","河南","河北","福建","安徽","重庆","天津"],
+      "鱼群":   ["云南","贵州","广西","陕西","山西","江西","辽宁","吉林"],
+      "稀有":   ["黑龙江","甘肃","内蒙古","新疆","西藏","海南","宁夏"],
+      "深海":   ["青海","台湾","香港","澳门"],
+      "亿中选一":[]
+    }
+  },
+  {
+    prompt: "说出一种中国功夫或武术流派",
+    hint: "十八般武艺",
+    answers: {
+      "浮游":   ["太极拳","少林功夫","少林拳","咏春拳","功夫"],
+      "聪明":   ["形意拳","八卦掌","南拳","洪拳","醉拳","螳螂拳"],
+      "鱼群":   ["通背拳","劈挂拳","翻子拳","戳脚","八极拳","迷踪拳"],
+      "稀有":   ["五祖拳","蔡李佛","白鹤拳","虎鹤双形","六合拳","心意六合拳"],
+      "深海":   ["岳氏连拳","绵拳","花拳","地躺拳","字门拳","自然门"],
+      "亿中选一":["峨眉刺","鹰爪拳","猴拳","蛇拳","五行拳","铁砂掌","金钟罩","点穴"]
+    }
+  },
+  {
+    prompt: "说出一个中国神话传说中的人物或神仙",
+    hint: "上古神话，仙佛传说",
+    answers: {
+      "浮游":   ["孙悟空","观音","如来佛","玉皇大帝","嫦娥","女娲","哪吒"],
+      "聪明":   ["盘古","伏羲","神农","后羿","精卫","牛郎织女","八仙","太上老君"],
+      "鱼群":   ["黄帝","蚩尤","炎帝","刑天","共工","祝融","夸父","仓颉"],
+      "稀有":   ["帝俊","羲和","常羲","鲧","应龙","烛龙","相柳","九天玄女"],
+      "深海":   ["句芒","蓐收","禺强","噎鸣","不周山","望帝","帝喾","颛顼"],
+      "亿中选一":["英招","陆吾","开明兽","当康","讙兜","混沌","穷奇","梼杌","饕餮"]
+    }
+  },
+  {
+    prompt: "说出一种中国传统手工艺",
+    hint: "巧夺天工的手艺传承",
+    answers: {
+      "浮游":   ["剪纸","刺绣","书法","国画","瓷器"],
+      "聪明":   ["篆刻","泥塑","年画","景泰蓝","漆器","木雕","风筝"],
+      "鱼群":   ["蜡染","扎染","竹编","草编","面塑","糖画","皮影"],
+      "稀有":   ["掐丝珐琅","花丝镶嵌","鼻烟壶","核雕","玉雕","砖雕","石雕"],
+      "深海":   ["缂丝","绒花","宫灯","料器","锡器","铜器","银器","通草花"],
+      "亿中选一":["髹漆","绞胎瓷","点翠","绗缝","拉洋片","绢人","鬃人","堆锦"]
+    }
+  },
+  {
+    prompt: "说出一条中国的河流",
+    hint: "江河湖海，源远流长",
+    answers: {
+      "浮游":   ["长江","黄河","珠江"],
+      "聪明":   ["淮河","海河","松花江","钱塘江","汉江","湘江"],
+      "鱼群":   ["嘉陵江","赣江","闽江","怒江","澜沧江","雅鲁藏布江","黑龙江"],
+      "稀有":   ["汾河","渭河","辽河","岷江","沱江","乌江","涪江"],
+      "深海":   ["塔里木河","额尔齐斯河","伊犁河","金沙江","大渡河","图们江","鸭绿江"],
+      "亿中选一":["白龙江","洮河","桂江","柳江","元江","南盘江","北盘江","牛栏江"]
+    }
+  },
+  {
+    prompt: "说出一个中国成语",
+    hint: "四字成语，言简意赅",
+    answers: {
+      "浮游":   ["一心一意","守株待兔","画蛇添足","对牛弹琴","井底之蛙","亡羊补牢"],
+      "聪明":   ["卧薪尝胆","破釜沉舟","三顾茅庐","望梅止渴","闻鸡起舞","悬梁刺股"],
+      "鱼群":   ["负荆请罪","完璧归赵","纸上谈兵","围魏救赵","退避三舍","唇亡齿寒"],
+      "稀有":   ["毛遂自荐","图穷匕见","鸡鸣狗盗","朝秦暮楚","买椟还珠","邯郸学步"],
+      "深海":   ["沐猴而冠","曲突徙薪","庖丁解牛","目无全牛","白驹过隙","吴牛喘月"],
+      "亿中选一":["郢书燕说","屠龙之技","买王得羊","尾生抱柱","曳尾涂中","每下愈况","数典忘祖","罄竹难书"]
+    }
+  },
+  {
+    prompt: "说出一种中国传统棋类或桌游",
+    hint: "琴棋书画之棋",
+    answers: {
+      "浮游":   ["围棋","象棋","五子棋","麻将"],
+      "聪明":   ["军棋","跳棋","斗地主","国际象棋"],
+      "鱼群":   ["飞行棋","弹棋","黑白棋","四国军棋"],
+      "稀有":   ["陆战棋","暗棋","揭棋","翻棋"],
+      "深海":   ["六博","双陆","樗蒲","弹棋"],
+      "亿中选一":["打马","升官图","彩选格","叶子戏","宣和牌","投壶","藏钩","射覆"]
+    }
+  },
+  {
+    prompt: "说出一个中国世界文化遗产",
+    hint: "全球瞩目的中国瑰宝",
+    answers: {
+      "浮游":   ["长城","故宫","兵马俑","秦始皇陵"],
+      "聪明":   ["莫高窟","颐和园","天坛","布达拉宫","苏州园林","丽江古城"],
+      "鱼群":   ["武当山古建筑群","龙门石窟","云冈石窟","大足石刻","平遥古城","曲阜孔庙"],
+      "稀有":   ["都江堰","青城山","庐山","武陵源","承德避暑山庄","土楼","开平碉楼"],
+      "深海":   ["殷墟","元上都","高句丽王城","澳门历史城区","五台山","西湖","崇圣寺三塔"],
+      "亿中选一":["明孝陵","清东陵","清西陵","土司遗址","良渚古城遗址","鼓浪屿","泉州"]
+    }
+  },
+  {
+    prompt: "说出一种中国少数民族",
+    hint: "五十六个民族五十六朵花",
+    answers: {
+      "浮游":   ["汉族","藏族","维吾尔族","蒙古族","壮族","回族"],
+      "聪明":   ["苗族","彝族","满族","土家族","朝鲜族","傣族","白族"],
+      "鱼群":   ["哈萨克族","瑶族","侗族","布依族","羌族","黎族","畲族"],
+      "稀有":   ["拉祜族","佤族","纳西族","景颇族","柯尔克孜族","达斡尔族","仫佬族"],
+      "深海":   ["普米族","阿昌族","怒族","基诺族","德昂族","保安族","裕固族"],
+      "亿中选一":["独龙族","鄂伦春族","赫哲族","门巴族","珞巴族","塔塔尔族","乌孜别克族","高山族"]
+    }
+  },
+  {
+    prompt: "说出一种中国传统糕点或甜品",
+    hint: "舌尖上的甜蜜记忆",
+    answers: {
+      "浮游":   ["月饼","汤圆","粽子","年糕","豆沙包"],
+      "聪明":   ["桂花糕","绿豆糕","驴打滚","糯米糍","麻花","双皮奶","杏仁豆腐"],
+      "鱼群":   ["马蹄糕","芋圆","糖葫芦","蛋黄酥","凤梨酥","牛舌饼","龙须糖"],
+      "稀有":   ["翠玉豆糕","定胜糕","状元糕","重阳糕","擂茶","茯苓饼","花生糖"],
+      "深海":   ["五仁月饼","荷花酥","千层糕","芸豆卷","豌豆黄","玫瑰饼","枣花酥"],
+      "亿中选一":["萨其马","松子百合酥","翡翠烧麦","鸡蛋布袋","蜜三刀","缸炉烧饼","牛肉锅盔","太师饼"]
+    }
+  },
+  {
+    prompt: "说出一位中国近现代名人",
+    hint: "近百年风云人物",
+    answers: {
+      "浮游":   ["毛泽东","鲁迅","孙中山","邓小平","周恩来"],
+      "聪明":   ["梁启超","蔡元培","胡适","钱学森","袁隆平","屠呦呦","李小龙"],
+      "鱼群":   ["林语堂","冰心","巴金","老舍","茅盾","沈从文","张爱玲"],
+      "稀有":   ["丁玲","萧红","闻一多","朱自清","钱钟书","杨绛","季羡林"],
+      "深海":   ["竺可桢","华罗庚","陈省身","吴健雄","丁肇中","李政道","杨振宁"],
+      "亿中选一":["王国维","陈寅恪","赵元任","刘半农","黄侃","章太炎","熊十力","梁漱溟"]
+    }
+  },
+  {
+    prompt: "说出一种中国传统服饰或服饰元素",
+    hint: "华服之美，衣冠上国",
+    answers: {
+      "浮游":   ["旗袍","汉服","唐装","中山装","马褂"],
+      "聪明":   ["龙袍","凤冠","肚兜","对襟","盘扣","斗笠"],
+      "鱼群":   ["霞帔","披风","褙子","曲裾","直裾","襦裙","深衣"],
+      "稀有":   ["飞鱼服","斗牛服","蟒袍","补子","翟衣","鹤氅"],
+      "深海":   ["半臂","帔帛","璎珞","步摇","禁步","玉佩","花钿"],
+      "亿中选一":["缠枝纹","云肩","抹额","搭护","比甲","裲裆","贴里","曳撒"]
+    }
+  }
+];
+
+// ═══════════════════════════════════════════
+// TIERS config
+// ═══════════════════════════════════════════
+const TIERS = [
+  { name:"浮游",    points:10,  color:"var(--tier-plankton)", emoji:"🦐", cssClass:"tier-plankton" },
+  { name:"聪明",    points:15,  color:"var(--tier-clever)",   emoji:"🐠", cssClass:"tier-clever"   },
+  { name:"鱼群",    points:30,  color:"var(--tier-schooler)", emoji:"🐟", cssClass:"tier-schooler" },
+  { name:"稀有",    points:60,  color:"var(--tier-rare)",     emoji:"🐡", cssClass:"tier-rare"     },
+  { name:"深海",    points:85,  color:"var(--tier-deep)",     emoji:"🦑", cssClass:"tier-deep"     },
+  { name:"亿中选一", points:100, color:"var(--tier-krillion)", emoji:"🐙", cssClass:"tier-krillion" }
+];
+
+const ZONES = [
+  { depth: 0,    name:"海面 — 阳光层", emoji:"☀️" },
+  { depth: 200,  name:"中层 — 暮光层", emoji:"🌅" },
+  { depth: 1000, name:"深层 — 午夜层", emoji:"🌙" },
+  { depth: 3000, name:"深渊层", emoji:"🌊" },
+  { depth: 5000, name:"超深渊层", emoji:"⬛" },
+  { depth: 6500, name:"海沟底部", emoji:"🏆" },
+];
+
+// ═══════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════
+let questions = [];
+let currentRound = 0;
+let totalScore = 0;
+let roundResults = []; // { prompt, answer, tier, points }
+let timerInterval = null;
+let timeLeft = 25;
+let answered = false;
+const TOTAL_ROUNDS = 7;
+const TIME_PER_ROUND = 25;
+
+// ═══════════════════════════════════════════
+// SHUFFLE & PICK
+// ═══════════════════════════════════════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function pickQuestions() {
+  return shuffle(ALL_QUESTIONS).slice(0, TOTAL_ROUNDS);
+}
+
+// ═══════════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════
+function startGame() {
+  questions = pickQuestions();
+  currentRound = 0;
+  totalScore = 0;
+  roundResults = [];
+  showScreen('gameScreen');
+  buildDots();
+  updateDepth();
+  loadRound();
+}
+
+function restartGame() {
+  showScreen('startScreen');
+}
+
+// ═══════════════════════════════════════════
+// DOTS
+// ═══════════════════════════════════════════
+function buildDots() {
+  const wrap = document.getElementById('progressDots');
+  wrap.innerHTML = '';
+  for (let i = 0; i < TOTAL_ROUNDS; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.textContent = i + 1;
+    wrap.appendChild(d);
+  }
+  updateDots();
+}
+
+function updateDots() {
+  const dots = document.querySelectorAll('.dot');
+  dots.forEach((d, i) => {
+    d.className = 'dot';
+    if (i < roundResults.length) {
+      const r = roundResults[i];
+      d.classList.add('done');
+      if (r.tier) {
+        const t = TIERS.find(t => t.name === r.tier);
+        d.classList.add(t ? t.cssClass : 'tier-miss');
+        d.textContent = r.points;
+      } else {
+        d.classList.add('tier-miss');
+        d.textContent = '0';
+      }
+    } else if (i === currentRound) {
+      d.classList.add('active');
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// LOAD ROUND
+// ═══════════════════════════════════════════
+function loadRound() {
+  if (currentRound >= TOTAL_ROUNDS) {
+    showResults();
+    return;
+  }
+  answered = false;
+  const q = questions[currentRound];
+  document.getElementById('roundInfo').textContent = `第 ${currentRound + 1} / ${TOTAL_ROUNDS} 题`;
+  document.getElementById('promptText').textContent = q.prompt;
+  document.getElementById('promptHint').textContent = q.hint + ' 🐠';
+  document.getElementById('feedback').innerHTML = '';
+  document.getElementById('inputRow').style.display = 'flex';
+  const inp = document.getElementById('answerInput');
+  inp.value = '';
+  inp.disabled = false;
+  inp.focus();
+  document.getElementById('submitBtn').disabled = false;
+
+  const card = document.getElementById('questionCard');
+  card.classList.remove('anim-in');
+  void card.offsetWidth;
+  card.classList.add('anim-in');
+
+  updateDots();
+  startTimer();
+  updateZoneLabel();
+}
+
+// ═══════════════════════════════════════════
+// TIMER
+// ═══════════════════════════════════════════
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = TIME_PER_ROUND;
+  updateTimerUI();
+  timerInterval = setInterval(() => {
+    timeLeft -= 0.1;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      clearInterval(timerInterval);
+      if (!answered) timeUp();
+    }
+    updateTimerUI();
+  }, 100);
+}
+
+function updateTimerUI() {
+  const pct = (timeLeft / TIME_PER_ROUND) * 100;
+  const bar = document.getElementById('timerBar');
+  bar.style.width = pct + '%';
+  bar.className = 'timer-bar' + (timeLeft < 7 ? ' urgent' : '');
+  document.getElementById('timerText').textContent = `剩余 ${Math.ceil(timeLeft)} 秒`;
+}
+
+function timeUp() {
+  answered = true;
+  document.getElementById('answerInput').disabled = true;
+  document.getElementById('submitBtn').disabled = true;
+  roundResults.push({ prompt: questions[currentRound].prompt, answer: '—', tier: null, points: 0 });
+  showFeedback(null, 0, '⏰ 时间到！');
+}
+
+// ═══════════════════════════════════════════
+// SUBMIT
+// ═══════════════════════════════════════════
+function submitAnswer() {
+  if (answered) return;
+  const inp = document.getElementById('answerInput');
+  const raw = inp.value.trim();
+  if (!raw) return;
+
+  const q = questions[currentRound];
+  const result = matchAnswer(raw, q.answers);
+
+  if (!result) {
+    // refused — shake and let them try again
+    inp.classList.add('shake');
+    setTimeout(() => inp.classList.remove('shake'), 400);
+    const fb = document.getElementById('feedback');
+    fb.innerHTML = '<div class="feedback-refuse">❌ 不符合条件，再试试！</div>';
+    inp.value = '';
+    inp.focus();
+    return;
+  }
+
+  // Accepted!
+  answered = true;
+  clearInterval(timerInterval);
+  inp.disabled = true;
+  document.getElementById('submitBtn').disabled = true;
+
+  const tier = TIERS.find(t => t.name === result);
+  const points = tier ? tier.points : 0;
+  totalScore += points;
+  roundResults.push({ prompt: q.prompt, answer: raw, tier: result, points });
+  updateDepth();
+  showFeedback(tier, points, raw);
+}
+
+function matchAnswer(input, answers) {
+  const norm = input.toLowerCase().replace(/\s+/g, '');
+  for (const tierName of ["亿中选一","深海","稀有","鱼群","聪明","浮游"]) {
+    const list = answers[tierName] || [];
+    for (const a of list) {
+      if (a.toLowerCase().replace(/\s+/g, '') === norm) return tierName;
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════
+// FEEDBACK
+// ═══════════════════════════════════════════
+function showFeedback(tier, points, text) {
+  const fb = document.getElementById('feedback');
+  if (tier) {
+    fb.innerHTML = `
+      <div class="feedback-tier" style="background:${tier.color}; color:#fff;">${tier.emoji} ${tier.name}</div>
+      <div class="feedback-points">+${points} 分 · 下潜 ${points * 10} 米</div>
+      <div style="margin-top:4px; font-size:0.85rem; color:rgba(255,255,255,0.5);">你的答案：${text}</div>
+      <button class="next-btn" onclick="nextRound()">继续 →</button>
+    `;
+  } else {
+    fb.innerHTML = `
+      <div class="feedback-refuse">${text}</div>
+      <div class="feedback-points">+0 分</div>
+      <button class="next-btn" onclick="nextRound()">继续 →</button>
+    `;
+  }
+  updateDots();
+}
+
+function nextRound() {
+  currentRound++;
+  loadRound();
+}
+
+// ═══════════════════════════════════════════
+// DEPTH & ZONE
+// ═══════════════════════════════════════════
+function updateDepth() {
+  const depth = totalScore * 10;
+  document.getElementById('depthNum').textContent = depth.toLocaleString();
+  // gradient background
+  const pct = Math.min(depth / 7000, 1);
+  document.body.style.background = `linear-gradient(180deg, 
+    hsl(${210 - pct * 30}, ${60 + pct * 20}%, ${25 - pct * 20}%) 0%,
+    hsl(${220 - pct * 20}, ${70 + pct * 15}%, ${8 - pct * 5}%) 100%)`;
+  updateZoneLabel();
+}
+
+function getZone(depth) {
+  let zone = ZONES[0];
+  for (const z of ZONES) {
+    if (depth >= z.depth) zone = z;
+  }
+  return zone;
+}
+
+function updateZoneLabel() {
+  const depth = totalScore * 10;
+  const zone = getZone(depth);
+  document.getElementById('zoneLabel').textContent = `${zone.emoji} ${zone.name}`;
+}
+
+// ═══════════════════════════════════════════
+// RESULTS
+// ═══════════════════════════════════════════
+function showResults() {
+  clearInterval(timerInterval);
+  showScreen('resultsScreen');
+
+  const depth = totalScore * 10;
+  document.getElementById('finalDepth').textContent = depth.toLocaleString();
+  const zone = getZone(depth);
+  document.getElementById('finalZone').textContent = `${zone.emoji} ${zone.name}`;
+  document.getElementById('finalScore').textContent = `总分：${totalScore} / 700`;
+
+  // Breakdown
+  const wrap = document.getElementById('resultsBreakdown');
+  wrap.innerHTML = '';
+  roundResults.forEach((r, i) => {
+    const tier = r.tier ? TIERS.find(t => t.name === r.tier) : null;
+    const row = document.createElement('div');
+    row.className = 'result-row';
+    row.innerHTML = `
+      <span class="rr-num">${i + 1}</span>
+      <span class="rr-prompt">${r.prompt}</span>
+      <span class="rr-answer">${r.answer}</span>
+      <span class="rr-tier" style="background:${tier ? tier.color : 'rgba(255,255,255,0.1)'}; color:${tier ? '#fff' : 'rgba(255,255,255,0.4)'};">
+        ${tier ? tier.emoji + ' ' + tier.name : '未答'}
+      </span>
+    `;
+    wrap.appendChild(row);
+  });
+
+  // Share text
+  const emojiLine = roundResults.map(r => {
+    if (!r.tier) return '⬛';
+    const t = TIERS.find(t => t.name === r.tier);
+    return t ? t.emoji : '⬛';
+  }).join('');
+
+  document.getElementById('shareBox').textContent =
+`🐟 亿中选一 — 中华知识深潜
+📏 深度：${depth.toLocaleString()} 米
+${emojiLine}
+${roundResults.map((r,i) => `${i+1}. ${r.tier || '未答'} (${r.points}分)`).join('\n')}`;
+}
+
+function copyShare() {
+  const text = document.getElementById('shareBox').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✅ 已复制！';
+    setTimeout(() => btn.textContent = '📋 复制分享', 2000);
+  });
+}
+
+// ═══════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const inp = document.getElementById('answerInput');
+    if (document.activeElement === inp && !inp.disabled) {
+      submitAnswer();
+    }
+  }
+});
+</script>
+</body>
+</html>

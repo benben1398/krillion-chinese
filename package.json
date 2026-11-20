@@ -1,0 +1,13 @@
+{
+  "name": "krillion-chinese-multiplayer",
+  "version": "1.0.0",
+  "description": "亿中选一 — 多人知识深潜游戏",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "socket.io": "^4.7.5"
+  }
+}
